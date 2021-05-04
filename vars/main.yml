@@ -1,0 +1,52 @@
+---
+nebula_file_name: |-
+  nebula-
+  {%- if ansible_system == 'Linux' -%}
+    linux
+  {%- elif ansible_os_family == 'Darwin' -%}
+    darwin
+  {%- elif ansible_os_family == 'FreeBSD' -%}
+    freebsd
+  {%- else -%}
+    ERROR
+  {%- endif -%}
+  -
+  {%- if ansible_architecture == 'x86_64' -%}
+    amd64
+  {%- elif ansible_architecture == 'x86' -%}
+    386
+  {%- elif ansible_architecture == 'aarch64' -%}
+    arm64
+  {%- elif ansible_architecture == 'armv7l' -%}
+    arm-7
+  {%- elif ansible_architecture == 'armv6l' -%}
+    arm-6
+  {%- elif ansible_architecture == 'armv5tel' -%}
+    arm-5
+  {%- else -%}
+    ERROR
+  {%- endif -%}
+  .tar.gz
+
+nebula_release_id: |-
+  {%- if nebula_release | default('') | length == 0 -%}
+    latest
+  {%- else -%}
+    {%- set ns = namespace() -%}
+    {%- for item in (nebula_release_json | default({}) ).json -%}
+      {%- if nebula_release in item.tag_name and ns.found | default(false) == false -%}
+        {%- set ns.found = true -%}
+        {{ item.url | basename }}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if ns.found | default(false) == false -%}
+      ERROR
+    {%- endif -%}
+  {%- endif -%}
+
+nebula_download_url: |-
+  {%- for item in (nebula_latest_json.json | default({}) ).assets | default([]) -%}
+    {%- if item.name == nebula_file_name -%}
+      {{ item.browser_download_url }}
+    {%- endif -%}
+  {%- endfor -%}

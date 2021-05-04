@@ -1,0 +1,37 @@
+galaxy_info:
+  author: Jon "The Nice Guy" Spriggs
+  description: An Ansible Role for deploying Nebula
+
+  license: MIT
+
+  min_ansible_version: 2.9
+  
+  platform:
+    - name: Ubuntu
+      versions:
+        - all
+
+    - name: Debian
+      versions:
+        - all
+
+    - name: EL
+      versions:
+        - all
+
+    - name: Fedora
+      versions:
+        - all
+
+    - name: MacOSX
+      versions:
+        - all
+
+    - name: FreeBSD
+      versions:
+        - all
+
+  galaxy_tags:
+    - nebula
+
+  dependencies: []
