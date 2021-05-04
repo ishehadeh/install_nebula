@@ -78,7 +78,7 @@
 - name: Create Nebula Config File
   ansible.builtin.template:
     src: config.yml
-    dest: /etc/nebula/config.yml
+    dest: /etc/nebula/config.yml.j2
     owner: root
     group: root
     mode: "0600"
