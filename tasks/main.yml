@@ -66,7 +66,7 @@
   when: item.value | length > 0
   loop:
   - key: ca.crt
-    value: "{{ nebula_ca | default('') }}"
+    value: "{{ nebula_ca_cert | default('') }}"
   - key: host.crt
     value: "{{ nebula_cert | default('') }}"
   - key: host.key

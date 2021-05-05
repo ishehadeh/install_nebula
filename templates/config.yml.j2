@@ -4,6 +4,7 @@ pki:
   key: /etc/nebula/host.key
 
 static_host_map:
+{% if not nebula_am_lighthouse | default('false') | bool %}
 {% for lighthouse in nebula_lighthouses | default([]) %}
   "{{ lighthouse.nebula_ip }}": {% if lighthouse.public_ips | default('') | length == 0 %}[]{% endif %}
 
@@ -11,9 +12,11 @@ static_host_map:
   - "{{ public_ip }}"
 {% endfor %}
 {% endfor %}
+{% endif %}
 
 lighthouse:
-  am_lighthouse: {{ nebula_am_lighthouse | default(false) | bool | string }}{% if nebula_am_lighthouse | default('false') | bool %}
+  am_lighthouse: {{ nebula_am_lighthouse | default(false) | bool | string }}
+{% if not nebula_am_lighthouse | default(false) | bool %}
   interval: 60
   hosts:
 {% for lighthouse in nebula_lighthouses | default([]) %}
@@ -21,18 +24,29 @@ lighthouse:
 {% endfor %}
 {% endif %}
 
+{% if nebula_port is defined or nebula_host is defined %}
 listen:
-  host: {{ nebula_host | default('0.0.0.0') }}
-  port: {{ nebula_port | default('4242') }}
+{% if nebula_host is defined %}
+  host: {{ nebula_host }}{% endif %}
+{% if nebula_port is defined %}
+  port: {{ nebula_port }}{% endif %}
+{% endif %}
+
+{% if nebula_preferred_ranges | default([]) | length > 0 and nebula_preferred_ranges | default('') is not string and nebula_preferred_ranges | default('') is not mapping and nebula_preferred_ranges | default([]) is iterable %}
+preferred_ranges:
+{% for item in nebula_preferred_ranges | default([]) %}
+  - "{{ item }}"
+{% endfor %}
+{% endif %}
 
 punchy:
-  punch: true
-  respond: true
-  delay: 1s
+  punch: {{ nebula_punch | default('true') | bool | string | lower }}
+  respond: {{ nebula_punch_respond | default('true') | bool | string | lower }}
+  delay: {{ nebula_punch_delay | default('1s') }}
 
 {% if nebula_ssh_users | default([]) | length > 0 %}sshd:
   enabled: true
-  listen: 127.0.0.1:2222
+  listen: {{ nebula_ssh_listen_host | default('127.0.0.1') }}:{{ nebula_ssh_listen_port | default('2222') }}
   host_key: /etc/ssh/ssh_host_ed25519_key
   authorized_users:
 {% for nebula_ssh_user in nebula_ssh_users | default([]) %}
@@ -51,6 +65,10 @@ tun:
   dev: {{ nebula_tun_name | default('nebula1') }}
   drop_local_broadcast: {{ nebula_drop_local_broadcast | default(true) | bool | string | lower }}
   drop_multicast: {{ nebula_drop_local_multicast | default(true) | bool | string | lower }}
+
+logging:
+  level: {{ nebula_logging_level | default('info') }}
+  format: {{ nebula_logging_format | default('text') }}
 
 firewall:
   outbound:
