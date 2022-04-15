@@ -54,7 +54,7 @@
     path: /etc/nebula
     owner: root
     group: root
-  when: nebula_key is defined or nebula_cert is defined or nebula_ca is defined
+  when: nebula_key is defined or nebula_cert is defined or nebula_ca_cert is defined
 
 - name: Create Nebula Key Materials
   ansible.builtin.copy:
@@ -95,7 +95,7 @@
   when:
   - nebula_key is defined
   - nebula_cert is defined
-  - nebula_ca is defined
+  - nebula_ca_cert is defined
   - nebula_lighthouses is defined
   - ansible_system == 'Linux'
   notify: Restart Nebula
