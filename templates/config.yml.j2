@@ -5,12 +5,8 @@ pki:
 
 static_host_map:
 {% if not nebula_am_lighthouse | default('false') | bool %}
-{% for lighthouse in nebula_lighthouses | default([]) %}
-  "{{ lighthouse.nebula_ip }}": {% if lighthouse.public_ips | default('') | length == 0 %}[]{% endif %}
-
-{% for public_ip in lighthouse.public_ips | default([]) %}
-  - "{{ public_ip }}"
-{% endfor %}
+{% for host in groups['lighthouses'] %}
+  "{{ hostvars[host]['nebula_ip'] }}": ["{{ hostvars[host]['inventory_hostname'] }}:4242"]
 {% endfor %}
 {% endif %}
 
@@ -19,8 +15,8 @@ lighthouse:
 {% if not nebula_am_lighthouse | default(false) | bool %}
   interval: 60
   hosts:
-{% for lighthouse in nebula_lighthouses | default([]) %}
-    - "{{ lighthouse.nebula_ip }}"
+{% for host in groups['lighthouses'] %}
+    - "{{ hostvars[host]['nebula_ip'] }}"
 {% endfor %}
 {% endif %}
 
