@@ -50,3 +50,9 @@ nebula_download_url: |-
       {{ item.browser_download_url }}
     {%- endif -%}
   {%- endfor -%}
+
+nebula_state_to_systemd_state:
+  absent: stopped
+  stopped: stopped
+  started: started
+  present: stopped

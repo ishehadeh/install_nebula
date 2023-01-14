@@ -1,0 +1,94 @@
+---
+- name: Check installed Nebula version
+  ansible.builtin.shell: (/usr/sbin/nebula --version 2>/dev/null || echo "Dummy 0.0.0") | cut -d\  -f 2
+  register: nebula_version
+  changed_when: false
+
+- name: Get releases
+  ansible.builtin.uri:
+    url: https://api.github.com/repos/slackhq/nebula/releases
+    follow_redirects: all
+  register: nebula_release_json
+  when: nebula_release is defined
+
+- name: Release Check
+  ansible.builtin.fail:
+    msg: A release with this version was not made. Please check and try again
+  when: "'ERROR' in nebula_release_id"
+
+- name: Get released version details
+  ansible.builtin.uri:
+    url: "https://api.github.com/repos/slackhq/nebula/releases/{{ nebula_release_id }}"
+    follow_redirects: all
+  register: nebula_latest_json
+  changed_when: false
+
+- name: "Fail when Nebula Install File can't be identified"
+  ansible.builtin.fail:
+    msg: Could not find the Nebula install files
+  when:
+  - nebula_latest_json.json is not defined
+  - nebula_latest_json.json.assets is not defined
+  - nebula_latest_json.json is string
+  - nebula_latest_json.json is not iterable
+  - nebula_download_url == ''
+
+- name: Unpack Nebula Install File
+  ansible.builtin.unarchive:
+    src: "{{ nebula_download_url }}"
+    dest: /usr/sbin
+    remote_src: true
+    owner: root
+    group: root
+  become: true
+  when: nebula_version.stdout not in nebula_download_url
+
+- name: Create Nebula Config directory
+  ansible.builtin.file:
+    state: directory
+    path: /etc/nebula
+    owner: root
+    group: root
+  when: nebula_key is defined or nebula_cert is defined or nebula_ca_cert is defined
+
+- name: Create Nebula Key Materials
+  ansible.builtin.copy:
+    content: "{{ item.value }}"
+    dest: "/etc/nebula/{{ item.key }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when: item.value | length > 0
+  loop:
+  - key: ca.crt
+    value: "{{ nebula_ca_cert | default('') }}"
+  - key: host.crt
+    value: "{{ nebula_cert | default('') }}"
+  - key: host.key
+    value: "{{ nebula_key | default('') }}"
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Restart Nebula
+
+- name: Create Nebula Config File
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: /etc/nebula/config.yml
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart Nebula
+
+- name: Install Nebula SystemD Service File
+  ansible.builtin.copy:
+    src: nebula.service
+    dest: /etc/systemd/system/nebula.service
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+  - nebula_key is defined
+  - nebula_cert is defined
+  - nebula_ca_cert is defined
+  - ansible_system == 'Linux'
+  notify: Restart Nebula

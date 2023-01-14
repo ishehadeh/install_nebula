@@ -1,0 +1,2 @@
+# One of ('present', 'started', 'stopped', 'absent')
+nebula_state: 'started'

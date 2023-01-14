@@ -4,96 +4,27 @@
     msg: OS/Architecture detection did not work for this platform. Please raise a PR to fix.
   when: "'ERROR' in nebula_file_name"
 
-- name: Check installed Nebula version
-  ansible.builtin.shell: (/usr/sbin/nebula --version 2>/dev/null || echo "Dummy 0.0.0") | cut -d\  -f 2
-  register: nebula_version
-  changed_when: false
-
-- name: Get releases
-  ansible.builtin.uri:
-    url: https://api.github.com/repos/slackhq/nebula/releases
-    follow_redirects: all
-  register: nebula_release_json
-  when: nebula_release is defined
-
-- name: Release Check
+- name: State check
   ansible.builtin.fail:
-    msg: A release with this version was not made. Please check and try again
-  when: "'ERROR' in nebula_release_id"
+    msg: Nebula state must be one of 'present', 'started', 'stopped', 'absent'. Got "{{ ansible_state }}"
+  when: "nebula_state not in ('present', 'started', 'stopped', 'absent')"
 
-- name: Get released version details
-  ansible.builtin.uri:
-    url: "https://api.github.com/repos/slackhq/nebula/releases/{{ nebula_release_id }}"
-    follow_redirects: all
-  register: nebula_latest_json
-  changed_when: false
+- name: Install nebula
+  when: nebula_state != "absent"
+  ansible.builtin.import_tasks: "install.yml"
 
-- name: "Fail when Nebula Install File can't be identified"
-  ansible.builtin.fail:
-    msg: Could not find the Nebula install files
-  when:
-  - nebula_latest_json.json is not defined
-  - nebula_latest_json.json.assets is not defined
-  - nebula_latest_json.json is string
-  - nebula_latest_json.json is not iterable
-  - nebula_download_url == ''
+- name: Set nebula service state
+  ansible.builtin.systemd:
+    name: nebula.service
+    state: '{{ nebula_state_to_systemd_state[nebula_state] }}'
+  when: nebula_state == "absent"
+  register: nebula_service_stop
+  failed_when:
+    - not nebula_service_stop.changed
+    # its ok if the service wasn't found if the plan is to remove it
+    - nebula_state == "absent" and "Could not find" not in nebula_service_stop.msg
 
-- name: Unpack Nebula Install File
-  ansible.builtin.unarchive:
-    src: "{{ nebula_download_url }}"
-    dest: /usr/sbin
-    remote_src: yes
-    owner: root
-    group: root
-  become: yes
-  when: nebula_version.stdout not in nebula_download_url
 
-- name: Create Nebula Config directory
-  ansible.builtin.file:
-    state: directory
-    path: /etc/nebula
-    owner: root
-    group: root
-  when: nebula_key is defined or nebula_cert is defined or nebula_ca_cert is defined
-
-- name: Create Nebula Key Materials
-  ansible.builtin.copy:
-    content: "{{ item.value }}"
-    dest: "/etc/nebula/{{ item.key }}"
-    owner: root
-    group: root
-    mode: "0600"
-  when: item.value | length > 0
-  loop:
-  - key: ca.crt
-    value: "{{ nebula_ca_cert | default('') }}"
-  - key: host.crt
-    value: "{{ nebula_cert | default('') }}"
-  - key: host.key
-    value: "{{ nebula_key | default('') }}"
-  loop_control:
-    label: "{{ item.key }}"
-  notify: Restart Nebula
-
-- name: Create Nebula Config File
-  ansible.builtin.template:
-    src: config.yml.j2
-    dest: /etc/nebula/config.yml
-    owner: root
-    group: root
-    mode: "0600"
-  notify: Restart Nebula
-
-- name: Install Nebula SystemD Service File
-  ansible.builtin.copy:
-    src: nebula.service
-    dest: /etc/systemd/system/nebula.service
-    owner: root
-    group: root
-    mode: "0644"
-  when:
-  - nebula_key is defined
-  - nebula_cert is defined
-  - nebula_ca_cert is defined
-  - ansible_system == 'Linux'
-  notify: Restart Nebula
+- name: Uninstall nebula
+  when: nebula_state == "absent"
+  ansible.builtin.import_tasks: "uninstall.yml"

@@ -5,3 +5,4 @@
     enabled: yes
     name: nebula.service
     state: restarted
+  when: nebula_state == "started"
